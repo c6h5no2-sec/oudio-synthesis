@@ -1,0 +1,175 @@
+<?php
+class mp3 {
+	var $str;
+	var $time;
+	var $frames;
+	// Create a new mp3 
+	function __construct($path="") {
+		if($path!="") {
+			$this->str = file_get_contents($path);
+		}
+	}
+	// Put an mp3 behind the first mp3 
+	function mergeBehind($mp3) {
+		$this->str .= $mp3->str;
+	}
+	// Calculate where's the end of the sound file 
+	function getIdvEnd() {
+		$strlen = strlen($this->str);
+		$str = substr($this->str,($strlen-128));
+		$str1 = substr($str,0,3);
+		if(strtolower($str1) == strtolower('TAG')) {
+			return $str;
+		} else {
+			return false;
+		}
+	}
+	// Calculate where's the beginning of the sound file 
+	function getStart() {
+		$strlen = strlen($this->str);
+		for ($i=0;$i<$strlen;$i++) {
+			$v = substr($this->str,$i,1);
+			$value = ord($v);
+			if($value == 255) {
+				return $i;
+			}
+		}
+	}
+	// Remove the ID3 tags 
+	function striptags() {
+		//Remove start stuff... 
+		$newStr = '';
+		$s = $start = $this->getStart();
+		if($s===false) {
+			return false;
+		} else {
+			$this->str = substr($this->str,$start);
+		}
+		//Remove end tag stuff 
+		$end = $this->getIdvEnd();
+		if($end!==false) {
+			$this->str = substr($this->str,0,(strlen($this->str)-129));
+		}
+	}
+	// Display an error 
+	function error($msg) {
+		//Fatal error 
+		die('<strong>audio file error: </strong>'.$msg);
+	}
+	// Send the new mp3 to the browser 
+	function output($path) {
+		//Output mp3 
+		//Send to standard output 
+		if(ob_get_contents()) 
+		      $this->error('Some data has already been output, can\'t send mp3 file');
+		if(php_sapi_name()!='cli') {
+			//We send to a browser 
+			header('Content-Type: audio/mpeg3');
+			if(headers_sent()) 
+			       $this->error('Some data has already been output to browser, can\'t send mp3 file');
+			header('Content-Length: '.strlen($this->str));
+			header('Content-Disposition: attachment; filename="'.$path.'"');
+		}
+		echo $this->str;
+		return '';
+	}
+	//Save MP3
+	function saveMp3($filename) {
+		$myfile = fopen($filename, "w") or die("Unable to open file!");
+		fwrite($myfile,  $this->str);
+		fclose($myfile);
+		echo $filename;
+	}
+}
+// First File: (Google speech) 
+// $mp3 = new mp3('1.mp3');
+// $mp3->striptags();
+// //Second file 
+// $second = new mp3("2.mp3");
+// $mp3->mergeBehind($second);
+// $mp3->striptags();
+ 
+// //$mp3->output('word.mp3'); 下载文件
+// $mp3->saveMp3('word.mp3'); //保存文件
+
+// $idcard = $GET['idcard'];
+// $code = $_GET['code'];
+
+
+function deleteDir($path) {
+
+    if (is_dir($path)) {
+        //扫描一个目录内的所有目录和文件并返回数组
+        $dirs = scandir($path);
+
+        foreach ($dirs as $dir) {
+            //排除目录中的当前目录(.)和上一级目录(..)
+            if ($dir != '.' && $dir != '..') {
+                //如果是目录则递归子目录，继续操作
+                $sonDir = $path.'/'.$dir;
+                if (is_dir($sonDir)) {
+                    //递归删除
+                    deleteDir($sonDir);
+
+                    //目录内的子目录和文件删除后删除空目录
+                    @rmdir($sonDir);
+                } else {
+
+                    //如果是文件直接删除
+                    @unlink($sonDir);
+                }
+            }
+        }
+    }
+}
+
+$mysqli = new mysqli("localhost", "root", "root", "voice");
+
+$idcard = $_GET['idcard'];
+$code = $_GET['code'];
+$code = intval($code);
+//强制转换
+
+$blackList=preg_match("/\'/", $idcard);
+if($whitelist==1)
+{
+	die('hacker');
+}
+$sql = "select * from user where idcard='$idcard'";// and password='$pass'";
+$result = $mysqli->query($sql);  
+$row = $result->fetch_row();
+
+if($row)
+{
+	$path = "$row[2]$row[1]/";
+	//返回出指定用户音频所在的位置
+}
+else
+{
+	die("目前仍未录入数据库");
+}
+
+for($i=0;$i<strlen($code);$i++)
+{
+	$char[] = substr($code,$i,1).".mp3";
+	echo $char[$i];
+	if($i==0)
+	{
+		$mp3 = new mp3($path.$char[$i]);
+		$mp3 -> striptags();
+	}
+	else
+	{
+		$newMp3 = new mp3($path.$char[$i]);
+		$mp3 ->mergeBehind($newMp3);
+		$mp3 ->striptags();
+	}
+
+}
+deleteDir($path."/new");
+//删除前面生成的音频文件，确保内存不会被浪费
+$mp3 ->saveMp3("$path"."new"."/$code.mp3");
+在路径下的/new中生成新的code音频
+
+
+?>
